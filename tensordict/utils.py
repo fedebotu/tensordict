@@ -111,6 +111,7 @@ def _getitem_batch_size(batch_size, index):
     look_for_disjoint = False
     disjoint = False
     bools = []
+    _last_key = 0
     for i, idx in enumerate(index):
         boolean = False
         if isinstance(idx, (range, list)):
@@ -130,10 +131,19 @@ def _getitem_batch_size(batch_size, index):
             if look_for_disjoint:
                 disjoint = True
             shapes_dict[i] = shape
+            _last_key = i
         bools.append(boolean)
     bs_shape = None
     if shapes_dict:
-        bs_shape = torch.broadcast_shapes(*shapes_dict.values())
+        # assuming _last_key is set to the last key added to shapes_dict
+        if len(shapes_dict) == 1:
+            if isinstance(shapes_dict[_last_key], torch.Size):
+                # in this case no need to use `torch.broadcast_shapes` for efficiency
+                bs_shape = shapes_dict[_last_key]
+            else:
+                bs_shape = torch.broadcast_shapes(shapes_dict[_last_key])
+        else:
+            bs_shape = torch.broadcast_shapes(*shapes_dict.values())
     out = []
     count = -1
     for i, idx in enumerate(index):
